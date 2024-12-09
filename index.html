@@ -93,7 +93,7 @@
     </section>
 
     <script>
-        let timer; // Interval ID
+let timer; // Interval ID
 let remainingSeconds = 0;
 
 const durationSelect = document.getElementById('duration');
@@ -102,7 +102,33 @@ const stopButton = document.getElementById('stopButton');
 const exportButton = document.getElementById('exportButton');
 const timerDisplay = document.getElementById('timer');
 const logList = document.getElementById('logList');
-let logs = []; // Array to store log entries
+let logs = JSON.parse(localStorage.getItem('logs')) || []; // Load logs from localStorage
+
+// Function to render the logs on the page
+function renderLogs() {
+    logList.innerHTML = ''; // Clear existing log list
+    logs.forEach(log => {
+        const logEntry = document.createElement('li');
+        logEntry.textContent = `At ${log.dateTime} - ${log.type} (${log.duration})`;
+        logList.appendChild(logEntry);
+    });
+
+    // Enable or disable the export button based on logs
+    exportButton.disabled = logs.length === 0;
+}
+
+// Function to add a log entry
+function addLog(type, duration) {
+    const dateTime = new Date().toLocaleString();
+    const logEntry = { dateTime, type, duration };
+    logs.push(logEntry);
+
+    // Save to localStorage
+    localStorage.setItem('logs', JSON.stringify(logs));
+
+    // Render updated logs
+    renderLogs();
+}
 
 function updateCountdown() {
     if (remainingSeconds > 0) {
@@ -116,48 +142,18 @@ function updateCountdown() {
         startButton.textContent = 'Start';
         stopButton.disabled = true;
 
-        // Auto-log the session
-        autoLog();
+        // Auto-log session completion
+        addLog('Completed', durationSelect.options[durationSelect.selectedIndex].text);
         alert('Time is up!');
     }
-}
-
-function getCurrentDateTime() {
-    const now = new Date();
-    const options = {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    };
-    return now.toLocaleString('en-US', options);
-}
-
-function autoLog() {
-    const dateTime = getCurrentDateTime();
-    const duration = durationSelect.options[durationSelect.selectedIndex].text;
-
-    // Log the entry
-    logs.push({ dateTime, duration });
-    const logEntry = document.createElement('li');
-    logEntry.textContent = `Completed at ${dateTime} - Duration: ${duration}`;
-    logList.appendChild(logEntry);
-
-    // Enable export button
-    exportButton.disabled = false;
-
-    // Reset timer display
-    timerDisplay.textContent = '00:00';
 }
 
 function exportToCSV() {
     if (logs.length === 0) return;
 
-    let csvContent = "data:text/csv;charset=utf-8,Date/Time,Duration\n";
+    let csvContent = "data:text/csv;charset=utf-8,Date/Time,Type,Duration\n";
     logs.forEach(log => {
-        csvContent += `${log.dateTime},${log.duration}\n`;
+        csvContent += `${log.dateTime},${log.type},${log.duration}\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -171,11 +167,9 @@ function exportToCSV() {
 
 startButton.addEventListener('click', () => {
     if (!timer) {
-        // Set countdown duration
         if (remainingSeconds === 0) {
             remainingSeconds = parseInt(durationSelect.value, 10);
         }
-
         timer = setInterval(updateCountdown, 1000);
         startButton.textContent = 'Pause';
         stopButton.disabled = false;
@@ -192,19 +186,9 @@ stopButton.addEventListener('click', () => {
         timer = null;
     }
 
-    const dateTime = getCurrentDateTime();
     const duration = timerDisplay.textContent;
+    addLog('Stopped', duration);
 
-    // Log the entry
-    logs.push({ dateTime, duration });
-    const logEntry = document.createElement('li');
-    logEntry.textContent = `Stopped at ${dateTime} - Remaining: ${duration}`;
-    logList.appendChild(logEntry);
-
-    // Enable export button
-    exportButton.disabled = false;
-
-    // Reset timer
     remainingSeconds = 0;
     timerDisplay.textContent = '00:00';
     startButton.textContent = 'Start';
@@ -213,6 +197,8 @@ stopButton.addEventListener('click', () => {
 
 exportButton.addEventListener('click', exportToCSV);
 
+// Render logs on page load
+document.addEventListener('DOMContentLoaded', renderLogs);
     </script>
 </body>
 </html>
